@@ -1,6 +1,11 @@
 export interface Task {
   id: string;
   text: string;
+  // An optional note with details of the task.
+  note?: string;
+  // Time in milliseconds since the epoch when the task was created. Missing
+  // for tasks that were stored without this time.
+  createdAt?: number;
   // Time in milliseconds since the epoch when the task was marked as done, or
   // null for an open task.
   doneAt: number | null;
@@ -42,12 +47,22 @@ export function doneTasks(tasks: Task[]): Task[] {
   return tasks.filter((t) => t.doneAt !== null).sort((a, b) => b.doneAt! - a.doneAt!);
 }
 
-export function addTask(tasks: Task[], text: string): Task[] {
-  return [...tasks, { id: crypto.randomUUID(), text, doneAt: null }];
+// The fields of a task that the user edits. An empty note is not stored.
+export type TaskFields = Pick<Task, 'text' | 'note'>;
+
+function withFields(task: Task, { text, note }: TaskFields): Task {
+  const result: Task = { ...task, text, note: note?.trim() };
+  if (!result.note) delete result.note;
+  return result;
 }
 
-export function updateTask(tasks: Task[], id: string, text: string): Task[] {
-  return tasks.map((t) => (t.id === id ? { ...t, text } : t));
+export function addTask(tasks: Task[], fields: TaskFields): Task[] {
+  const task: Task = { id: crypto.randomUUID(), text: '', doneAt: null, createdAt: Date.now() };
+  return [...tasks, withFields(task, fields)];
+}
+
+export function updateTask(tasks: Task[], id: string, fields: TaskFields): Task[] {
+  return tasks.map((t) => (t.id === id ? withFields(t, fields) : t));
 }
 
 export function toggleTask(tasks: Task[], id: string): Task[] {
@@ -56,8 +71,4 @@ export function toggleTask(tasks: Task[], id: string): Task[] {
 
 export function removeTask(tasks: Task[], id: string): Task[] {
   return tasks.filter((t) => t.id !== id);
-}
-
-export function clearDone(tasks: Task[]): Task[] {
-  return openTasks(tasks);
 }

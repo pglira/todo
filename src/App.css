@@ -79,7 +79,6 @@ h1 {
 
 .icon,
 .add,
-.clear,
 .swipe-actions button {
   display: flex;
   align-items: center;
@@ -184,9 +183,32 @@ ul {
   color: #fff;
 }
 
+.body {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
 .text {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* The note shows at most two lines in the list; the form shows all of it. */
+.note {
+  color: var(--muted);
+  font-size: 15px;
+  white-space: pre-line;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .done .text {
@@ -208,17 +230,6 @@ ul {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.clear {
-  padding: 8px 12px;
-  background: var(--control);
-  font-size: 15px;
-}
-
-.clear.armed {
-  background: var(--danger);
-  color: #fff;
 }
 
 .backdrop {
@@ -253,7 +264,8 @@ ul {
   font-size: 14px;
 }
 
-.sheet input {
+.sheet input,
+.sheet textarea {
   font: inherit;
   /* 16px or more stops iOS from zooming into the field. */
   font-size: 18px;
@@ -320,4 +332,8 @@ ul {
 .sheet .replace {
   background: var(--danger);
   color: #fff;
+}
+
+.sheet textarea {
+  resize: vertical;
 }

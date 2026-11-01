@@ -3,9 +3,10 @@
 A Progressive Web App for a simple todo list.
 
 - Add a task with the + button. Tap a task to mark it as done or as open.
+- Add a note to a task. The list shows the note below the text of the task.
+- Each task shows the time of creation and, when done, the time of completion.
 - Open tasks show in the order of creation. Done tasks show below, the most recently done task first.
 - Swipe a task to the left to show Edit and Delete. Delete asks for a second tap.
-- Remove all done tasks with "Clear" and a second tap.
 - Back up all data to a file and import it on a new phone: tap the backup button in the header. The import replaces all data after a second tap.
 
 ## Tech

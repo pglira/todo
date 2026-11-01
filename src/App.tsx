@@ -4,8 +4,8 @@ import { Icon, type IconName } from './icons';
 import {
   APP_ID,
   type Task,
+  type TaskFields,
   addTask,
-  clearDone,
   doneTasks,
   isDataKey,
   loadTasks,
@@ -65,7 +65,11 @@ export default function App() {
         onClick={() => setTasks((t) => toggleTask(t, task.id))}
       >
         <span className="box">{task.doneAt !== null && <Icon name="check" size={18} />}</span>
-        <span className="text">{task.text}</span>
+        <span className="body">
+          <span className="text">{task.text}</span>
+          {task.note && <span className="note">{task.note}</span>}
+          {times(task) && <span className="meta">{times(task)}</span>}
+        </span>
       </button>
     </SwipeRow>
   );
@@ -107,7 +111,6 @@ export default function App() {
         <>
           <div className="section">
             <h2>Done ({done.length})</h2>
-            <ClearButton onConfirm={() => setTasks(clearDone)} />
           </div>
           <ul>{done.map(row)}</ul>
         </>
@@ -118,10 +121,10 @@ export default function App() {
       {taskSheet && (
         <TaskForm
           key={taskSheet.id ?? 'new'}
-          text={sheetTask?.text ?? ''}
+          task={sheetTask}
           onCancel={close}
-          onSave={(text) => {
-            setTasks((t) => (sheetTask ? updateTask(t, sheetTask.id, text) : addTask(t, text)));
+          onSave={(fields) => {
+            setTasks((t) => (sheetTask ? updateTask(t, sheetTask.id, fields) : addTask(t, fields)));
             close();
           }}
           onDelete={
@@ -136,6 +139,18 @@ export default function App() {
       )}
     </main>
   );
+}
+
+const timeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+// The creation time and the completion time of a task, for example
+// "Created 1 Nov 2026, 14:02 · Done 2 Nov 2026, 09:10". Times that are not
+// stored are left out.
+function times(task: Task): string {
+  const parts: string[] = [];
+  if (task.createdAt) parts.push(`Created ${timeFormat.format(task.createdAt)}`);
+  if (task.doneAt !== null) parts.push(`Done ${timeFormat.format(task.doneAt)}`);
+  return parts.join(' · ');
 }
 
 // Width of the swipe actions in pixels, and the distance a pointer must move
@@ -178,7 +193,8 @@ function SwipeRow({ className, open, onOpen, onClose, onEdit, onDelete, children
     return () => document.removeEventListener('pointerdown', onDown);
   }, [open, onClose]);
 
-  const position = (e: PointerEvent) => Math.min(0, Math.max(-SWIPE_WIDTH, base + e.clientX - gesture.current!.x));
+  const position = (e: PointerEvent) =>
+    Math.min(0, Math.max(-SWIPE_WIDTH, base + e.clientX - gesture.current!.x));
 
   const onPointerDown = (e: PointerEvent) => {
     gesture.current = { x: e.clientX, y: e.clientY, swiping: false };
@@ -249,33 +265,6 @@ function SwipeRow({ className, open, onOpen, onClose, onEdit, onDelete, children
   );
 }
 
-const CONFIRM_MS = 3000;
-
-// Remove all done tasks after a second tap. The button returns to its first
-// state when the second tap does not come within CONFIRM_MS.
-function ClearButton({ onConfirm }: { onConfirm: () => void }) {
-  const [armed, setArmed] = useState(false);
-
-  useEffect(() => {
-    if (!armed) return;
-    const timer = setTimeout(() => setArmed(false), CONFIRM_MS);
-    return () => clearTimeout(timer);
-  }, [armed]);
-
-  return (
-    <button
-      className={armed ? 'clear armed' : 'clear'}
-      onClick={() => {
-        if (armed) onConfirm();
-        setArmed(!armed);
-      }}
-    >
-      <Icon name="trash" size={18} />
-      {armed ? 'Tap to confirm' : 'Clear'}
-    </button>
-  );
-}
-
 const backupDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 // Export all data to a backup file, or replace all data with the data of a
@@ -341,14 +330,17 @@ function BackupSheet({ onClose }: { onClose: () => void }) {
 }
 
 interface TaskFormProps {
-  text: string;
-  onSave: (text: string) => void;
+  task?: Task;
+  onSave: (fields: TaskFields) => void;
   onCancel: () => void;
   onDelete?: () => void;
 }
 
+// Add or edit a task: the text and an optional note. For an existing task,
+// the form also shows the creation time and the completion time.
 function TaskForm(props: TaskFormProps) {
-  const [text, setText] = useState(props.text);
+  const [text, setText] = useState(props.task?.text ?? '');
+  const [note, setNote] = useState(props.task?.note ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const value = text.trim();
 
@@ -359,7 +351,7 @@ function TaskForm(props: TaskFormProps) {
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          if (value) props.onSave(value);
+          if (value) props.onSave({ text: value, note });
         }}
       >
         <h2>{props.onDelete ? 'Edit task' : 'New task'}</h2>
@@ -374,6 +366,16 @@ function TaskForm(props: TaskFormProps) {
             enterKeyHint="done"
           />
         </label>
+        <label>
+          Note
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && props.onCancel()}
+            rows={3}
+          />
+        </label>
+        {props.task && times(props.task) && <p className="hint">{times(props.task)}</p>}
         <div className="buttons">
           {props.onDelete && (
             <button
