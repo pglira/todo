@@ -8,6 +8,12 @@ export interface Task {
 
 const STORAGE_KEY = 'todo.v1';
 
+// The id of the app in backup files.
+export const APP_ID = 'todo';
+
+// The storage keys that a backup holds: all keys of the app except the theme.
+export const isDataKey = (key: string) => key.startsWith('todo.') && key !== 'todo.theme';
+
 // All tasks in the order of creation, oldest first.
 export function loadTasks(): Task[] {
   try {

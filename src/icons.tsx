@@ -8,6 +8,8 @@ const PATHS = {
   check: 'M5 12l5 5L19 7',
   edit: 'M4 20v-4L15 5l4 4L8 20zM12 8l4 4',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
+  backup: 'M4 14v6h16v-6M12 4v10M8 10l4 4 4-4',
+  upload: 'M4 14v6h16v-6M12 14V4M8 8l4-4 4 4',
 };
 
 export type IconName = keyof typeof PATHS;

@@ -1,10 +1,13 @@
-import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ChangeEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type Backup, exportBackup, readBackup, restoreBackup } from './backup';
 import { Icon, type IconName } from './icons';
 import {
+  APP_ID,
   type Task,
   addTask,
   clearDone,
   doneTasks,
+  isDataKey,
   loadTasks,
   openTasks,
   removeTask,
@@ -21,8 +24,8 @@ const THEME_LABELS: Record<Theme, string> = {
   dark: 'Theme: dark',
 };
 
-// The open sheet: a task form, with id null for a new task.
-type Sheet = { id: string | null } | null;
+// The open sheet: a task form (id null for a new task) or the backup sheet.
+type Sheet = { id: string | null } | { backup: true } | null;
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>(loadTasks);
@@ -36,7 +39,8 @@ export default function App() {
   const open = openTasks(tasks);
   const done = doneTasks(tasks);
   const close = () => setSheet(null);
-  const sheetTask = sheet?.id ? tasks.find((t) => t.id === sheet.id) : undefined;
+  const taskSheet = sheet && 'id' in sheet ? sheet : null;
+  const sheetTask = taskSheet?.id ? tasks.find((t) => t.id === taskSheet.id) : undefined;
 
   const row = (task: Task) => (
     <SwipeRow
@@ -71,6 +75,9 @@ export default function App() {
       <header>
         <h1>Todo</h1>
         <div className="header-buttons">
+          <button className="icon" onClick={() => setSheet({ backup: true })} aria-label="Backup" title="Backup">
+            <Icon name="backup" />
+          </button>
           <button
             className="icon"
             onClick={nextTheme}
@@ -106,9 +113,11 @@ export default function App() {
         </>
       )}
 
-      {sheet && (
+      {sheet && 'backup' in sheet && <BackupSheet onClose={close} />}
+
+      {taskSheet && (
         <TaskForm
-          key={sheet.id ?? 'new'}
+          key={taskSheet.id ?? 'new'}
           text={sheetTask?.text ?? ''}
           onCancel={close}
           onSave={(text) => {
@@ -264,6 +273,70 @@ function ClearButton({ onConfirm }: { onConfirm: () => void }) {
       <Icon name="trash" size={18} />
       {armed ? 'Tap to confirm' : 'Clear'}
     </button>
+  );
+}
+
+const backupDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+// Export all data to a backup file, or replace all data with the data of a
+// backup file. The replacement needs a second tap and reloads the app.
+function BackupSheet({ onClose }: { onClose: () => void }) {
+  const [backup, setBackup] = useState<Backup | null>(null);
+  const [error, setError] = useState('');
+
+  const importFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear the input so that the same file can be selected again.
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setBackup(readBackup(await file.text(), APP_ID));
+      setError('');
+    } catch (err) {
+      setBackup(null);
+      setError(err instanceof Error ? err.message : 'The file cannot be read.');
+    }
+  };
+
+  return (
+    <div className="backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <h2>Backup</h2>
+        <p className="hint">Export all data to a file. Import the file on the new phone.</p>
+        <div className="file-buttons">
+          <button type="button" className="file-button" onClick={() => exportBackup(APP_ID, isDataKey)}>
+            <Icon name="backup" size={18} />
+            Export
+          </button>
+          <label className="file-button">
+            <Icon name="upload" size={18} />
+            Import
+            <input type="file" accept="application/json,.json" hidden onChange={importFile} />
+          </label>
+        </div>
+        {error && <p className="error">{error}</p>}
+        {backup && (
+          <>
+            <p className="hint">Backup of {backupDate.format(new Date(backup.exported))}</p>
+            <button
+              type="button"
+              className="replace"
+              onClick={() => {
+                restoreBackup(backup, isDataKey);
+                location.reload();
+              }}
+            >
+              Tap to replace all data
+            </button>
+          </>
+        )}
+        <div className="buttons">
+          <button type="button" className="primary" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
